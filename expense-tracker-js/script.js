@@ -1,154 +1,462 @@
-// ==========================================
-// EXPENSE TRACKER JAVASCRIPT
-// Assignment: JavaScript Fundamentals
-// ==========================================
+
+/* =====================================
+   SPENDWISE - WEEK 6
+   Interactive Budgeting Application
+===================================== */
+
+// 1. SELECT HTML ELEMENTS
+
+const expenseForm = document.getElementById("expenseForm");
+const expenseName = document.getElementById("expenseName");
+const expenseAmount = document.getElementById("expenseAmount");
+const expenseCategory = document.getElementById("expenseCategory");
+const expenseDate = document.getElementById("expenseDate");
+
+const expenseList = document.getElementById("expenseList");
+const totalBudgetElement = document.getElementById("totalBudget");
+const totalExpensesElement = document.getElementById("totalExpenses");
+const remainingBalanceElement = document.getElementById("remainingBalance");
+const expenseCountElement = document.getElementById("expenseCount");
+
+const budgetInput = document.getElementById("budgetInput");
+const updateBudgetBtn = document.getElementById("updateBudgetBtn");
+
+const budgetStatus = document.getElementById("budgetStatus");
+const budgetProgress = document.getElementById("budgetProgress");
+const budgetPercentage = document.getElementById("budgetPercentage");
+const budgetMessage = document.getElementById("budgetMessage");
+
+const formMessage = document.getElementById("formMessage");
+const emptyMessage = document.getElementById("emptyMessage");
+const clearExpensesBtn = document.getElementById("clearExpensesBtn");
 
 
-// ==========================================
-// PART 1: STORE SAMPLE EXPENSES
-// ==========================================
+// 2. APPLICATION DATA
 
-// Create variables for six different expenses.
-// Each expense stores a numeric value.
+let budget = Number(localStorage.getItem("spendwiseBudget")) || 20000;
 
-let rent = 150;
-let food = 85;
-let transport = 60;
-let internet = 120;
-let entertainment = 75;
-let utilities = 155;
+let expenses = [];
+
+try {
+    const savedExpenses = JSON.parse(
+        localStorage.getItem("spendwiseExpenses")
+    );
+
+    if (Array.isArray(savedExpenses)) {
+        expenses = savedExpenses.filter(expense =>
+            expense &&
+            typeof expense.name === "string" &&
+            typeof expense.category === "string" &&
+            Number.isFinite(Number(expense.amount)) &&
+            Number(expense.amount) > 0 &&
+            typeof expense.id === "string"
+        );
+    }
+} catch (error) {
+    expenses = [];
+    console.error("Could not load saved expenses:", error);
+}
 
 
-// ==========================================
-// PART 2: FLAG HIGH SPENDING
-// ==========================================
+// 3. FORMAT CURRENCY
 
-// Function to check an individual expense.
-// An expense above $100 is considered
-// High Spending.
+function formatCurrency(amount) {
+    return "KSh " + Number(amount).toLocaleString("en-KE", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
 
-function checkSpending(category, amount) {
 
-    if (amount > 100) {
+// 4. SAVE DATA TO LOCAL STORAGE
 
-        console.log(category + ": High Spending");
+function saveData() {
+    localStorage.setItem("spendwiseBudget", budget);
 
-    } else if (amount >= 0) {
+    localStorage.setItem(
+        "spendwiseExpenses",
+        JSON.stringify(expenses)
+    );
+}
 
-        console.log(category + ": Normal Spending");
+
+// 5. CALCULATE TOTAL EXPENSES USING A LOOP
+
+function calculateTotalExpenses() {
+    let total = 0;
+
+    for (const expense of expenses) {
+        total += Number(expense.amount);
+    }
+
+    return total;
+}
+
+
+// 6. UPDATE DASHBOARD USING DOM MANIPULATION
+
+function updateDashboard() {
+
+    const total = calculateTotalExpenses();
+    const remaining = budget - total;
+
+    totalBudgetElement.textContent = formatCurrency(budget);
+    totalExpensesElement.textContent = formatCurrency(total);
+    remainingBalanceElement.textContent = formatCurrency(remaining);
+    expenseCountElement.textContent = expenses.length;
+
+    budgetInput.value = budget;
+
+    // Calculate budget utilization
+
+    let percentage = 0;
+
+    if (budget > 0) {
+        percentage = (total / budget) * 100;
+    }
+
+    const progressWidth = Math.min(percentage, 100);
+
+    budgetProgress.style.width = progressWidth + "%";
+
+    budgetPercentage.textContent = percentage.toFixed(1) + "%";
+
+    // 7. CONDITIONAL STATEMENTS FOR BUDGET DECISIONS
+
+    budgetStatus.className = "status-badge";
+
+    if (budget === 0) {
+
+        budgetStatus.textContent = "Set Your Budget";
+        budgetMessage.textContent =
+            "Please set a monthly budget to monitor your spending.";
+
+        budgetStatus.classList.add("status-warning");
+
+    } else if (total > budget) {
+
+        budgetStatus.textContent = "Over Budget";
+
+        budgetMessage.textContent =
+            "Warning! You have exceeded your monthly budget by " +
+            formatCurrency(total - budget) + ".";
+
+        budgetStatus.classList.add("status-danger");
+
+    } else if (percentage >= 80) {
+
+        budgetStatus.textContent = "Almost Reached";
+
+        budgetMessage.textContent =
+            "Be careful! You have used " +
+            percentage.toFixed(1) +
+            "% of your monthly budget.";
+
+        budgetStatus.classList.add("status-warning");
 
     } else {
 
-        console.log(category + ": Invalid Expense");
+        budgetStatus.textContent = "Within Budget";
+
+        budgetMessage.textContent =
+            "Good job! You are managing your expenses well.";
 
     }
+
+    // Change remaining balance color
+
+    if (remaining < 0) {
+        remainingBalanceElement.style.color = "#dc3545";
+    } else {
+        remainingBalanceElement.style.color = "#173b70";
+    }
+
+    saveData();
 }
 
 
-// Check each expense individually.
+// 8. DISPLAY EXPENSES USING A LOOP AND DOM MANIPULATION
 
-checkSpending("Rent", rent);
+function displayExpenses() {
 
-checkSpending("Food", food);
+    expenseList.innerHTML = "";
 
-checkSpending("Transport", transport);
+    // Check whether there are expense records
 
-checkSpending("Internet", internet);
+    if (expenses.length === 0) {
 
-checkSpending("Entertainment", entertainment);
+        emptyMessage.style.display = "block";
 
-checkSpending("Utilities", utilities);
+    } else {
 
+        emptyMessage.style.display = "none";
 
-// ==========================================
-// PART 3: CALCULATE TOTAL EXPENSES
-// ==========================================
+    }
 
-// Store all six expense values inside an array.
+    // Sort newest records first
 
-let expenses = [
-    rent,
-    food,
-    transport,
-    internet,
-    entertainment,
-    utilities
-];
+    const sortedExpenses = [...expenses].reverse();
 
+    // Process each expense using forEach()
 
-// Create a variable to store the total.
+    sortedExpenses.forEach(function(expense) {
 
-let totalExpenses = 0;
+        const row = document.createElement("tr");
 
+        const nameCell = document.createElement("td");
+        const categoryCell = document.createElement("td");
+        const dateCell = document.createElement("td");
+        const amountCell = document.createElement("td");
+        const actionCell = document.createElement("td");
 
-// Use a loop to calculate the total.
-// The expenses are NOT manually added together.
+        // Use textContent to safely display user input
 
-for (let expense of expenses) {
+        nameCell.textContent = expense.name;
 
-    totalExpenses = totalExpenses + expense;
+        const categoryBadge = document.createElement("span");
+        categoryBadge.className = "category";
+        categoryBadge.textContent = expense.category;
 
-}
+        categoryCell.appendChild(categoryBadge);
 
+        dateCell.textContent = expense.date;
 
-// Display the calculated total.
+        amountCell.textContent = formatCurrency(expense.amount);
 
-console.log("--------------------------------");
+        // Create delete button
 
-console.log(
-    "Total Expenses: $" + totalExpenses
-);
+        const deleteButton = document.createElement("button");
 
+        deleteButton.textContent = "Delete";
+        deleteButton.className = "delete-btn";
+        deleteButton.type = "button";
+        deleteButton.dataset.id = expense.id;
 
-// ==========================================
-// PART 4: BUDGET CHECK
-// ==========================================
+        actionCell.appendChild(deleteButton);
 
-// Store the monthly income.
+        // Add cells to the table row
 
-let monthlyIncome = 800;
+        row.appendChild(nameCell);
+        row.appendChild(categoryCell);
+        row.appendChild(dateCell);
+        row.appendChild(amountCell);
+        row.appendChild(actionCell);
 
+        // Add row to the webpage
 
-// Display the monthly income.
+        expenseList.appendChild(row);
 
-console.log(
-    "Monthly Income: $" + monthlyIncome
-);
-
-
-// Compare total expenses with monthly income.
-
-if (totalExpenses <= monthlyIncome) {
-
-    console.log("Status: Within Budget");
-
-} else {
-
-    console.log("Status: Over Budget");
+    });
 
 }
 
 
-// ==========================================
-// FINAL SUMMARY
-// ==========================================
+// 9. HANDLE FORM SUBMISSION USING AN EVENT LISTENER
 
-console.log("--------------------------------");
+expenseForm.addEventListener("submit", function(event) {
 
-console.log("Expense Tracker Summary");
+    // Prevent the page from refreshing
 
-console.log("Monthly Income: $" + monthlyIncome);
+    event.preventDefault();
 
-console.log("Total Expenses: $" + totalExpenses);
+    // Get user input
 
-if (totalExpenses <= monthlyIncome) {
+    const name = expenseName.value.trim();
+    const amount = Number(expenseAmount.value);
+    const category = expenseCategory.value;
+    const date = expenseDate.value;
 
-    console.log("Status: Within Budget");
+    // Validate user input
 
-} else {
+    if (
+        !name ||
+        !Number.isFinite(amount) ||
+        amount <= 0 ||
+        !category ||
+        !date
+    ) {
 
-    console.log("Status: Over Budget");
+        showMessage("Please enter valid expense details.", "error");
+        return;
+
+    }
+
+    // Create a new expense object
+
+    const newExpense = {
+
+        id: crypto.randomUUID(),
+
+        name: name,
+
+        amount: amount,
+
+        category: category,
+
+        date: date
+
+    };
+
+    // Store the expense in the array
+
+    expenses.push(newExpense);
+
+    // Save the updated array
+
+    saveData();
+
+    // Update dashboard and transactions
+
+    updateDashboard();
+
+    displayExpenses();
+
+    // Reset form
+
+    expenseForm.reset();
+
+    setTodayDate();
+
+    showMessage("Expense added successfully!", "success");
+
+});
+
+
+// 10. UPDATE MONTHLY BUDGET
+
+updateBudgetBtn.addEventListener("click", function() {
+
+    const newBudget = Number(budgetInput.value);
+
+    if (!Number.isFinite(newBudget) || newBudget < 0) {
+
+        showMessage("Please enter a valid budget.", "error");
+
+        return;
+
+    }
+
+    budget = newBudget;
+
+    updateDashboard();
+
+    showMessage("Budget updated successfully!", "success");
+
+});
+
+
+// 11. DELETE EXPENSES USING EVENT DELEGATION
+
+expenseList.addEventListener("click", function(event) {
+
+    if (event.target.classList.contains("delete-btn")) {
+
+        const expenseId = event.target.dataset.id;
+
+        expenses = expenses.filter(function(expense) {
+
+            return expense.id !== expenseId;
+
+        });
+
+        saveData();
+
+        updateDashboard();
+
+        displayExpenses();
+
+        showMessage("Expense deleted successfully!", "success");
+
+    }
+
+});
+
+
+// 12. CLEAR ALL EXPENSES
+
+clearExpensesBtn.addEventListener("click", function() {
+
+    if (expenses.length === 0) {
+
+        showMessage("There are no expenses to clear.", "error");
+
+        return;
+
+    }
+
+    const confirmation = confirm(
+        "Are you sure you want to delete all expenses?"
+    );
+
+    if (confirmation) {
+
+        expenses = [];
+
+        saveData();
+
+        updateDashboard();
+
+        displayExpenses();
+
+        showMessage("All expenses have been cleared.", "success");
+
+    }
+
+});
+
+
+// 13. DISPLAY SUCCESS AND ERROR MESSAGES
+
+function showMessage(message, type) {
+
+    formMessage.textContent = message;
+
+    formMessage.className = "form-message";
+
+    if (type === "success") {
+
+        formMessage.classList.add("success-message");
+
+    } else {
+
+        formMessage.classList.add("error-message");
+
+    }
 
 }
 
-console.log("--------------------------------");
+
+// 14. SET TODAY'S DATE
+
+function setTodayDate() {
+
+    const today = new Date();
+
+    const year = today.getFullYear();
+
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+
+    const day = String(today.getDate()).padStart(2, "0");
+
+    expenseDate.value = `${year}-${month}-${day}`;
+
+}
+
+
+// 15. INITIALIZE APPLICATION
+
+function initializeSpendWise() {
+
+    setTodayDate();
+
+    updateDashboard();
+
+    displayExpenses();
+
+    console.log("SpendWise application initialized successfully.");
+
+}
+
+// Start the application
+
+initializeSpendWise();
